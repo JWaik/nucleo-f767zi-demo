@@ -42,7 +42,8 @@ add_executable(${CMAKE_PROJECT_NAME})
 add_subdirectory(cmake/stm32cubemx)
 
 # Add C++ class directory 
-add_subdirectory(App)
+add_subdirectory(App/DroneCAN)
+add_subdirectory(modules/DroneCAN/libcanard)
 
 # Link directories setup
 target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE
