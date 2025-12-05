@@ -11,5 +11,18 @@
         "starm-clangd",
         "--query-driver=${env:CUBE_BUNDLE_PATH}/st-arm-clang/19.1.6+st.9/bin/starm-clang",
         "--query-driver=${env:CUBE_BUNDLE_PATH}/st-arm-clang/19.1.6+st.9/bin/starm-clang++"
-    ]
+    ],
+    "files.associations": {
+        "cstdint": "cpp",
+        "compare": "cpp",
+        "functional": "cpp",
+        "stm32f7xx_hal_conf.h": "c",
+        "stm32f7xx.h": "c",
+        "dronecan.h": "c",
+        "new": "cpp",
+        "canard_stm32.h": "c",
+        "_internal_bxcan.h": "c",
+        "stm32f7xx_hal.h": "c",
+        "unistd.h": "c"
+    }
 }
