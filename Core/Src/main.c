@@ -202,7 +202,7 @@ static void MX_CAN1_Init(void)
 {
 
   /* USER CODE BEGIN CAN1_Init 0 */
-
+  CAN_FilterTypeDef  sFilterConfig;
   /* USER CODE END CAN1_Init 0 */
 
   /* USER CODE BEGIN CAN1_Init 1 */
@@ -225,7 +225,42 @@ static void MX_CAN1_Init(void)
     Error_Handler();
   }
   /* USER CODE BEGIN CAN1_Init 2 */
-
+  /* The CAN filter configuration */
+  sFilterConfig.FilterBank = 0;
+  sFilterConfig.FilterMode = CAN_FILTERMODE_IDMASK;
+  sFilterConfig.FilterScale = CAN_FILTERSCALE_32BIT;
+  sFilterConfig.FilterIdHigh = 0x0000;
+  sFilterConfig.FilterIdLow = 0x0000;
+  sFilterConfig.FilterMaskIdHigh = 0x0000;
+  sFilterConfig.FilterMaskIdLow = 0x0000;
+  sFilterConfig.FilterFIFOAssignment = CAN_RX_FIFO0; /* The data will be received in FIFO0 */
+  sFilterConfig.FilterActivation = ENABLE;
+  sFilterConfig.SlaveStartFilterBank = 14;
+  if (HAL_CAN_ConfigFilter(&hcan1, &sFilterConfig) != HAL_OK)
+  {
+    /* Filter configuration Error */
+    // Error_Handler();
+  }
+  /* Starting the CAN peripheral */
+  if (HAL_CAN_Start(&hcan1) != HAL_OK)
+  {
+    /* Start Error */
+    // Error_Handler();
+  }
+ /* Activate CAN TX RX notification */
+  if (HAL_CAN_ActivateNotification(&hcan1, CAN_IT_TX_MAILBOX_EMPTY     | 
+                                           CAN_IT_RX_FIFO0_MSG_PENDING |
+                                           CAN_IT_RX_FIFO0_FULL        |
+                                           CAN_IT_RX_FIFO0_OVERRUN     |
+                                           CAN_IT_WAKEUP               |
+                                           CAN_IT_SLEEP_ACK            |
+                                           CAN_IT_ERROR_WARNING        |
+                                           CAN_IT_ERROR_PASSIVE        |
+                                           CAN_IT_BUSOFF               |
+                                           CAN_IT_LAST_ERROR_CODE      |
+                                           CAN_IT_ERROR                ) != HAL_OK) {
+    // Error_Handler();
+  }
   /* USER CODE END CAN1_Init 2 */
 
 }
