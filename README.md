@@ -13,4 +13,7 @@ This project is a modular STM32 firmware written in C++, built using CMake, and 
 - Easy-to-extend architecture for additional modules
 - Clean separation of executable vs. application libraries
 
+## Example CAN Configuration using CubeMX
+- Check out this [docs link!](CAN_Configurations.md) 
+
 ## FreeRTOS demo project (N/A)
