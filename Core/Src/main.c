@@ -87,7 +87,7 @@ static void MX_USB_OTG_FS_PCD_Init(void);
 void StartDefaultTask(void *argument);
 
 /* USER CODE BEGIN PFP */
-
+#define PUTCHAR_PROTOTYPE int __io_putchar(int ch)
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -416,7 +416,16 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
-
+/**
+  * @brief  Retargets the C library printf function to the USART.
+  *   None
+  * @retval None
+  */
+PUTCHAR_PROTOTYPE
+{
+  HAL_UART_Transmit(&huart3, (uint8_t *)&ch, 1, HAL_MAX_DELAY);
+  return ch;
+}
 /* USER CODE END 4 */
 
 /* USER CODE BEGIN Header_StartDefaultTask */
