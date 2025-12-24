@@ -346,7 +346,8 @@ static void MX_CAN1_Init(void)
                                            CAN_IT_ERROR_PASSIVE        |
                                            CAN_IT_BUSOFF               |
                                            CAN_IT_LAST_ERROR_CODE      |
-                                           CAN_IT_ERROR                ) != HAL_OK) {
+                                           CAN_IT_ERROR                ) != HAL_OK)
+  {
     // Error_Handler();
   }
   /* USER CODE END CAN1_Init 2 */
