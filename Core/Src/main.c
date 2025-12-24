@@ -22,7 +22,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include <stdio.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -69,7 +69,11 @@ UART_HandleTypeDef huart3;
 PCD_HandleTypeDef hpcd_USB_OTG_FS;
 
 /* USER CODE BEGIN PV */
-
+CAN_TxHeaderTypeDef TxHeader;
+CAN_RxHeaderTypeDef RxHeader;
+uint32_t            TxMailbox;
+uint8_t             TxData[8];
+uint8_t             RxData[8];
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -85,6 +89,63 @@ static void MX_CAN1_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+// CAN callback function
+void HAL_CAN_TxMailbox0CompleteCallback(CAN_HandleTypeDef *hcan)
+{
+  printf("HAL_CAN_TxMailbox0CompleteCallback \r\n");
+}
+
+void HAL_CAN_TxMailbox0AbortCallback(CAN_HandleTypeDef *hcan)
+{
+  printf("HAL_CAN_TxMailbox0AbortCallback\r\n");
+}
+
+void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
+{
+  if (HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &RxHeader, RxData) != HAL_OK)
+  {
+    // Error_Handler();
+    printf("Error: HAL_CAN_RxFifo0MsgPendingCallback\r\n");
+  }
+  else
+  {
+    printf("\nGot msg!\r\n");
+    // print header
+    // todo: read TimeTriggeredMode register (CAN_MCR_TTCM), if enable print timestamp, otherwise print current time instead.
+    (RxHeader.IDE == CAN_ID_STD) ? printf("stdID: 0x%04lx \r\n", RxHeader.StdId) : printf("extendID: 0x%04lx \r\n", RxHeader.ExtId);
+    printf("Frame type: ");
+    (RxHeader.RTR == CAN_RTR_DATA) ? printf("Data\r\n") : printf("Remote\r\n");
+    printf("Data-length: %lu bytes \r\n", RxHeader.DLC);
+
+    // print data 
+    printf("Data:0x ");
+    for (uint8_t i = 0; i < RxHeader.DLC; i++)
+    {
+      printf("%02x ", RxData[i]&0xFF);
+    }
+    printf("\r\n\n");
+  }
+}
+
+void HAL_CAN_RxFifo0FullCallback(CAN_HandleTypeDef *hcan)
+{
+  printf("HAL_CAN_RxFifo0FullCallback\r\n");
+}
+
+void HAL_CAN_SleepCallback(CAN_HandleTypeDef *hcan)
+{
+  printf("HAL_CAN_SleepCallback\r\n");
+}
+
+void HAL_CAN_WakeUpFromRxMsgCallback(CAN_HandleTypeDef *hcan)
+{
+  printf("HAL_CAN_WakeUpFromRxMsgCallback\r\n");
+}
+
+void HAL_CAN_ErrorCallback(CAN_HandleTypeDef *hcan)
+{
+  printf("HAL_CAN_ErrorCallback\r\n");
+}
 
 /* USER CODE END 0 */
 
@@ -122,13 +183,40 @@ int main(void)
   MX_USB_OTG_FS_PCD_Init();
   MX_CAN1_Init();
   /* USER CODE BEGIN 2 */
-
+  // Configure header and data
+  TxHeader.StdId = 0x321;
+  TxHeader.IDE = CAN_ID_STD;
+  TxHeader.RTR = CAN_RTR_DATA;
+  TxHeader.DLC = 8;
+  TxHeader.TransmitGlobalTime = DISABLE;
+  
+  TxData[0] = 0;
+  TxData[7] = 0xFF;
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+  // CAN-TX Example. Increase the first byte every 1 sec and send to bus.
+  uint32_t now = 0;
+  uint32_t next_tx = 1000U;
   while (1)
   {
+    now = HAL_GetTick();
+    if (now >= next_tx)
+    {
+	    TxData[0] ++; /* Increment the first byte */
+      /* It's mandatory to look for a free Tx mail box */
+      /* Wait till a Tx mailbox is free. Using while loop instead of HAL_Delay() */
+	    while(HAL_CAN_GetTxMailboxesFreeLevel(&hcan1) == 0)
+      { 
+        if (HAL_CAN_AddTxMessage(&hcan1, &TxHeader, TxData, &TxMailbox) != HAL_OK)
+        {
+          /* TODO: Transmission request Error */
+          // Error_Handler();
+        }
+        next_tx = now + 1000U;
+      }
+    }
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
