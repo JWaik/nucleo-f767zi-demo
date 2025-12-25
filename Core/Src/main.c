@@ -22,7 +22,8 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "I2C_API.h"
+#include <stdio.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -125,6 +126,21 @@ int main(void)
   MX_I2C1_Init();
   MX_I2C2_Init();
   /* USER CODE BEGIN 2 */
+  // call i2c api
+  i2c_bus_init(&hi2c1);
+  uint8_t found_addr_buf[128] = {0};
+  uint8_t addr_count = i2c_scan(found_addr_buf, sizeof(found_addr_buf));
+#ifdef DBUG_I2C
+  printf("Found %u address(es)\r\n", addr_count);
+  if (addr_count)
+  {
+    for (uint8_t i = 0; i < addr_count; i++)
+    {
+        printf("0x%02x ", found_addr_buf[i]);
+    }
+    printf("\r\n");
+  }
+#endif
 
   /* USER CODE END 2 */
 
