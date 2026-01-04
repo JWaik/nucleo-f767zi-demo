@@ -93,6 +93,11 @@ osSemaphoreId_t myCountingSem01Handle;
 const osSemaphoreAttr_t myCountingSem01_attributes = {
   .name = "myCountingSem01"
 };
+/* Definitions for EventGroup1 */
+osEventFlagsId_t EventGroup1Handle;
+const osEventFlagsAttr_t EventGroup1_attributes = {
+  .name = "EventGroup1"
+};
 /* USER CODE BEGIN PV */
 
 /* USER CODE END PV */
@@ -188,6 +193,10 @@ int main(void)
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
   /* USER CODE END RTOS_THREADS */
+
+  /* Create the event(s) */
+  /* creation of EventGroup1 */
+  EventGroup1Handle = osEventFlagsNew(&EventGroup1_attributes);
 
   /* USER CODE BEGIN RTOS_EVENTS */
   /* add events, ... */
@@ -460,9 +469,8 @@ PUTCHAR_PROTOTYPE
 
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
-  // printf("BT-R ", osSemaphoreGetCount(myCountingSem01Handle));
-  osSemaphoreRelease(myCountingSem01Handle);
-  printf("BT-R\r\n");
+  printf("B0x%04lx\r\n", osEventFlagsSet(EventGroup1Handle, 0x50));
+  osDelay(1);
 }
 /* USER CODE END 4 */
 
@@ -479,9 +487,9 @@ void StartTask1(void *argument)
   /* Infinite loop */
   for(;;)
   {
-    osSemaphoreRelease(myCountingSem01Handle);
-    printf("T1-R\r\n");
-    osDelay(2000);
+  // Noted: bit is cleared in the function.
+    osEventFlagsWait(EventGroup1Handle, 0x51, osFlagsWaitAll, osWaitForever);
+    printf("T1\r\n");
   }
   /* USER CODE END 5 */
 }
@@ -499,9 +507,9 @@ void StartTask2(void *argument)
   /* Infinite loop */
   for(;;)
   {
-    osSemaphoreRelease(myCountingSem01Handle);
-    printf("T2-R\r\n");
-    osDelay(2000);
+    osEventFlagsSet(EventGroup1Handle, 0x01);
+    printf("T20x%04lx\r\n", osEventFlagsGet(EventGroup1Handle));
+    osDelay(3000);
   }
   /* USER CODE END StartTask2 */
 }
@@ -519,9 +527,9 @@ void StartTask3(void *argument)
   /* Infinite loop */
   for(;;)
   {
-    osSemaphoreAcquire(myCountingSem01Handle, 4000);
-    osSemaphoreAcquire(myCountingSem01Handle, 4000);
-    printf("T3-A %lu+1\r\n");
+    osEventFlagsWait(EventGroup1Handle, 0x51, osFlagsWaitAll, osWaitForever);
+    printf("T3\r\n");
+    osDelay(1);
   }
   /* USER CODE END StartTask3 */
 }
