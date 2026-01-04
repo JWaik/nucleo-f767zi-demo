@@ -67,41 +67,27 @@ UART_HandleTypeDef huart3;
 
 PCD_HandleTypeDef hpcd_USB_OTG_FS;
 
-/* Definitions for Sender1 */
-osThreadId_t Sender1Handle;
-const osThreadAttr_t Sender1_attributes = {
-  .name = "Sender1",
+/* Definitions for Task1 */
+osThreadId_t Task1Handle;
+const osThreadAttr_t Task1_attributes = {
+  .name = "Task1",
   .stack_size = 256 * 4,
   .priority = (osPriority_t) osPriorityNormal,
 };
-/* Definitions for Reciever */
-osThreadId_t RecieverHandle;
-const osThreadAttr_t Reciever_attributes = {
-  .name = "Reciever",
-  .stack_size = 256 * 4,
-  .priority = (osPriority_t) osPriorityNormal1,
-};
-/* Definitions for Sender2 */
-osThreadId_t Sender2Handle;
-const osThreadAttr_t Sender2_attributes = {
-  .name = "Sender2",
+/* Definitions for Task2 */
+osThreadId_t Task2Handle;
+const osThreadAttr_t Task2_attributes = {
+  .name = "Task2",
   .stack_size = 256 * 4,
   .priority = (osPriority_t) osPriorityNormal,
 };
-/* Definitions for Queue1 */
-osMessageQueueId_t Queue1Handle;
-const osMessageQueueAttr_t Queue1_attributes = {
-  .name = "Queue1"
+/* Definitions for myBinarySem01 */
+osSemaphoreId_t myBinarySem01Handle;
+const osSemaphoreAttr_t myBinarySem01_attributes = {
+  .name = "myBinarySem01"
 };
 /* USER CODE BEGIN PV */
-/* Define the structure type that will be passed on the queue. */
-typedef struct
-{
-  uint16_t value;
-  uint8_t source;
-} message_data_t;
-message_data_t DataToSend1 = {11,1};
-message_data_t DataToSend2 = {22,2};
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -110,9 +96,8 @@ static void MX_GPIO_Init(void);
 static void MX_ETH_Init(void);
 static void MX_USART3_UART_Init(void);
 static void MX_USB_OTG_FS_PCD_Init(void);
-void StartSender1(void *argument);
-void StartReciever(void *argument);
-void StartSender2(void *argument);
+void StartTask1(void *argument);
+void StartTask2(void *argument);
 
 /* USER CODE BEGIN PFP */
 #define PUTCHAR_PROTOTYPE int __io_putchar(int ch)
@@ -166,6 +151,10 @@ int main(void)
   /* add mutexes, ... */
   /* USER CODE END RTOS_MUTEX */
 
+  /* Create the semaphores(s) */
+  /* creation of myBinarySem01 */
+  myBinarySem01Handle = osSemaphoreNew(1, 1, &myBinarySem01_attributes);
+
   /* USER CODE BEGIN RTOS_SEMAPHORES */
   /* add semaphores, ... */
   /* USER CODE END RTOS_SEMAPHORES */
@@ -174,23 +163,16 @@ int main(void)
   /* start timers, add new ones, ... */
   /* USER CODE END RTOS_TIMERS */
 
-  /* Create the queue(s) */
-  /* creation of Queue1 */
-  Queue1Handle = osMessageQueueNew (8, sizeof(message_data_t), &Queue1_attributes);
-
   /* USER CODE BEGIN RTOS_QUEUES */
   /* add queues, ... */
   /* USER CODE END RTOS_QUEUES */
 
   /* Create the thread(s) */
-  /* creation of Sender1 */
-  Sender1Handle = osThreadNew(StartSender1, NULL, &Sender1_attributes);
+  /* creation of Task1 */
+  Task1Handle = osThreadNew(StartTask1, NULL, &Task1_attributes);
 
-  /* creation of Reciever */
-  RecieverHandle = osThreadNew(StartReciever, NULL, &Reciever_attributes);
-
-  /* creation of Sender2 */
-  Sender2Handle = osThreadNew(StartSender2, NULL, &Sender2_attributes);
+  /* creation of Task2 */
+  Task2Handle = osThreadNew(StartTask2, NULL, &Task2_attributes);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
@@ -464,74 +446,51 @@ PUTCHAR_PROTOTYPE
   HAL_UART_Transmit(&huart3, (uint8_t *)&ch, 1, HAL_MAX_DELAY);
   return ch;
 }
+
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+{
+  printf("Button sem Released\r\n");
+  osSemaphoreRelease(myBinarySem01Handle);
+}
 /* USER CODE END 4 */
 
-/* USER CODE BEGIN Header_StartSender1 */
+/* USER CODE BEGIN Header_StartTask1 */
 /**
-  * @brief  Function implementing the Sender1 thread.
+  * @brief  Function implementing the Task1 thread.
   * @param  argument: Not used
   * @retval None
   */
-/* USER CODE END Header_StartSender1 */
-void StartSender1(void *argument)
+/* USER CODE END Header_StartTask1 */
+void StartTask1(void *argument)
 {
   /* USER CODE BEGIN 5 */
   /* Infinite loop */
   for(;;)
   {
-    printf("S1\r\n");
-    osMessageQueuePut(Queue1Handle, &DataToSend1, 0, 200);
-    osDelay(1000);
+    osDelay(2000);
+    printf("Task1 Released\r\n");
+    osSemaphoreRelease(myBinarySem01Handle);
   }
   /* USER CODE END 5 */
 }
 
-/* USER CODE BEGIN Header_StartReciever */
+/* USER CODE BEGIN Header_StartTask2 */
 /**
-* @brief Function implementing the Reciever thread.
+* @brief Function implementing the Task2 thread.
 * @param argument: Not used
 * @retval None
 */
-/* USER CODE END Header_StartReciever */
-void StartReciever(void *argument)
+/* USER CODE END Header_StartTask2 */
+void StartTask2(void *argument)
 {
-  /* USER CODE BEGIN StartReciever */
-  message_data_t res;
-  osStatus_t r_state; // todo: move to global to inspect
+  /* USER CODE BEGIN StartTask2 */
   /* Infinite loop */
   for(;;)
   {
-    printf("R");
-    // Noticed: this task may be blocked due to no data left in fifo
-    r_state = osMessageQueueGet(Queue1Handle, &res, NULL, 2000); // Wait(block state) for 2000ms and go next line
-    if (r_state == osOK)
-    {
-      printf("value:%u source:%u \r\n", res.value, res.source);
-    }else{
-      printf("r_state %u\r\n", (uint8_t)r_state);
-    }
+    osSemaphoreAcquire(myBinarySem01Handle, 4000);
+    printf("Task2 Acquired\r\n");
   }
-  /* USER CODE END StartReciever */
-}
-
-/* USER CODE BEGIN Header_StartSender2 */
-/**
-* @brief Function implementing the Sender2 thread.
-* @param argument: Not used
-* @retval None
-*/
-/* USER CODE END Header_StartSender2 */
-void StartSender2(void *argument)
-{
-  /* USER CODE BEGIN StartSender2 */
-  /* Infinite loop */
-  for(;;)
-  {
-    printf("S2\r\n");
-    osMessageQueuePut(Queue1Handle, &DataToSend2, 0, 200);
-    osDelay(2000);
-  }
-  /* USER CODE END StartSender2 */
+  /* USER CODE END StartTask2 */
 }
 
 /**
