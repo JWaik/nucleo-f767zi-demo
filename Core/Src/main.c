@@ -74,24 +74,10 @@ const osThreadAttr_t Task1_attributes = {
   .stack_size = 256 * 4,
   .priority = (osPriority_t) osPriorityNormal,
 };
-/* Definitions for Task2 */
-osThreadId_t Task2Handle;
-const osThreadAttr_t Task2_attributes = {
-  .name = "Task2",
-  .stack_size = 256 * 4,
-  .priority = (osPriority_t) osPriorityNormal,
-};
-/* Definitions for Task3 */
-osThreadId_t Task3Handle;
-const osThreadAttr_t Task3_attributes = {
-  .name = "Task3",
-  .stack_size = 256 * 4,
-  .priority = (osPriority_t) osPriorityNormal,
-};
-/* Definitions for myMutex01 */
-osMutexId_t myMutex01Handle;
-const osMutexAttr_t myMutex01_attributes = {
-  .name = "myMutex01"
+/* Definitions for myTimer01 */
+osTimerId_t myTimer01Handle;
+const osTimerAttr_t myTimer01_attributes = {
+  .name = "myTimer01"
 };
 /* USER CODE BEGIN PV */
 
@@ -104,8 +90,7 @@ static void MX_ETH_Init(void);
 static void MX_USART3_UART_Init(void);
 static void MX_USB_OTG_FS_PCD_Init(void);
 void StartTask1(void *argument);
-void StartTask2(void *argument);
-void StartTask3(void *argument);
+void Callback01(void *argument);
 
 /* USER CODE BEGIN PFP */
 #define PUTCHAR_PROTOTYPE int __io_putchar(int ch)
@@ -154,9 +139,6 @@ int main(void)
 
   /* Init scheduler */
   osKernelInitialize();
-  /* Create the mutex(es) */
-  /* creation of myMutex01 */
-  myMutex01Handle = osMutexNew(&myMutex01_attributes);
 
   /* USER CODE BEGIN RTOS_MUTEX */
   /* add mutexes, ... */
@@ -165,6 +147,10 @@ int main(void)
   /* USER CODE BEGIN RTOS_SEMAPHORES */
   /* add semaphores, ... */
   /* USER CODE END RTOS_SEMAPHORES */
+
+  /* Create the timer(s) */
+  /* creation of myTimer01 */
+  myTimer01Handle = osTimerNew(Callback01, osTimerPeriodic, NULL, &myTimer01_attributes);
 
   /* USER CODE BEGIN RTOS_TIMERS */
   /* start timers, add new ones, ... */
@@ -177,12 +163,6 @@ int main(void)
   /* Create the thread(s) */
   /* creation of Task1 */
   Task1Handle = osThreadNew(StartTask1, NULL, &Task1_attributes);
-
-  /* creation of Task2 */
-  Task2Handle = osThreadNew(StartTask2, NULL, &Task2_attributes);
-
-  /* creation of Task3 */
-  Task3Handle = osThreadNew(StartTask3, NULL, &Task3_attributes);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
@@ -474,69 +454,23 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 void StartTask1(void *argument)
 {
   /* USER CODE BEGIN 5 */
-  uint8_t idx = 0;
+  osTimerStart(myTimer01Handle,1000);
   /* Infinite loop */
   for(;;)
   {
-    osMutexAcquire(myMutex01Handle, osWaitForever);
+    osDelay(2000);
     printf("T1\r\n");
-    if (idx == 3)
-    {
-      // Noted:
-      // 1.When we set low priority here,
-      // 2.the scheduler will switch to higher task but it has priority inheritance prevent this.
-      // 3.Priority inheritance mechanism will temporary promote this task to higher priority (to task2/3 priority).
-      // 4.So, it will run normally then priority change back to Low in next time tick
-      // The binary semaphore do not have this mechanism, the task 2 will be block because the scheduler will switch to higher task.
-      osThreadSetPriority(Task1Handle, osPriorityLow);
-      // osThreadYield();
-    }
-    idx++;
-    osMutexRelease(myMutex01Handle);
-    HAL_Delay(1500);
   }
-  /* USER CODE END 5 */
 }
 
-/* USER CODE BEGIN Header_StartTask2 */
-/**
-* @brief Function implementing the Task2 thread.
-* @param argument: Not used
-* @retval None
-*/
-/* USER CODE END Header_StartTask2 */
-void StartTask2(void *argument)
+/* Callback01 function */
+void Callback01(void *argument)
 {
-  /* USER CODE BEGIN StartTask2 */
-  /* Infinite loop */
-  for(;;)
-  {
-    // osDelay(2000);
-    osMutexAcquire(myMutex01Handle,1000);
-    printf("T2\r\n");
-    osMutexRelease(myMutex01Handle);
-    HAL_Delay(1500);
-  }
-  /* USER CODE END StartTask2 */
-}
-
-/* USER CODE BEGIN Header_StartTask3 */
-/**
-* @brief Function implementing the Task3 thread.
-* @param argument: Not used
-* @retval None
-*/
-/* USER CODE END Header_StartTask3 */
-void StartTask3(void *argument)
-{
-  /* USER CODE BEGIN StartTask3 */
-  /* Infinite loop */
-  for(;;)
-  {
-    printf("T3\r\n");
-    HAL_Delay(1500);
-  }
-  /* USER CODE END StartTask3 */
+  /* USER CODE BEGIN Callback01 */
+  // Caution: Should not put any delay inside timer callback function.
+  // Noted: if timer priority is too low, timer callback may not be executed.
+  printf("c\r\n");
+  /* USER CODE END Callback01 */
 }
 
 /**
