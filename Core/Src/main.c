@@ -63,6 +63,8 @@ ETH_TxPacketConfig TxConfig;
 
 ETH_HandleTypeDef heth;
 
+TIM_HandleTypeDef htim13;
+
 UART_HandleTypeDef huart3;
 
 PCD_HandleTypeDef hpcd_USB_OTG_FS;
@@ -75,7 +77,7 @@ const osThreadAttr_t Task1_attributes = {
   .priority = (osPriority_t) osPriorityNormal,
 };
 /* USER CODE BEGIN PV */
-
+volatile unsigned long ulHighFrequencyTimerTicks;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -84,6 +86,7 @@ static void MX_GPIO_Init(void);
 static void MX_ETH_Init(void);
 static void MX_USART3_UART_Init(void);
 static void MX_USB_OTG_FS_PCD_Init(void);
+static void MX_TIM13_Init(void);
 void StartTask1(void *argument);
 
 /* USER CODE BEGIN PFP */
@@ -92,6 +95,16 @@ void StartTask1(void *argument);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+void configureTimerForRunTimeStats(void)
+{
+  ulHighFrequencyTimerTicks = 0;
+  HAL_TIM_Base_Start_IT(&htim13);
+}
+
+unsigned long getRunTimeCounterValue(void)
+{
+  return ulHighFrequencyTimerTicks;
+}
 
 /* USER CODE END 0 */
 
@@ -127,6 +140,7 @@ int main(void)
   MX_ETH_Init();
   MX_USART3_UART_Init();
   MX_USB_OTG_FS_PCD_Init();
+  MX_TIM13_Init();
   /* USER CODE BEGIN 2 */
 
   /* USER CODE END 2 */
@@ -281,6 +295,37 @@ static void MX_ETH_Init(void)
   /* USER CODE BEGIN ETH_Init 2 */
 
   /* USER CODE END ETH_Init 2 */
+
+}
+
+/**
+  * @brief TIM13 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM13_Init(void)
+{
+
+  /* USER CODE BEGIN TIM13_Init 0 */
+
+  /* USER CODE END TIM13_Init 0 */
+
+  /* USER CODE BEGIN TIM13_Init 1 */
+
+  /* USER CODE END TIM13_Init 1 */
+  htim13.Instance = TIM13;
+  htim13.Init.Prescaler = 0;
+  htim13.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim13.Init.Period = 840-1;
+  htim13.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim13.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim13) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM13_Init 2 */
+
+  /* USER CODE END TIM13_Init 2 */
 
 }
 
@@ -446,15 +491,10 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 void StartTask1(void *argument)
 {
   /* USER CODE BEGIN 5 */
-  uint16_t count = 1;
   /* Infinite loop */
   for(;;)
   {
-    uint8_t large_array[count];
-    large_array[0] = 0;
-    uint32_t stackSize = osThreadGetStackSpace(osThreadGetId());
-    if(stackSize) count += 10;
-    printf("ArraySize:%lu StackFree: %lu bytes\r\n", (uint32_t)sizeof(large_array), stackSize);
+
     osDelay(500);
   }
   /* USER CODE END 5 */
