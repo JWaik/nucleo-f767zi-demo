@@ -74,11 +74,6 @@ const osThreadAttr_t Task1_attributes = {
   .stack_size = 256 * 4,
   .priority = (osPriority_t) osPriorityNormal,
 };
-/* Definitions for myTimer01 */
-osTimerId_t myTimer01Handle;
-const osTimerAttr_t myTimer01_attributes = {
-  .name = "myTimer01"
-};
 /* USER CODE BEGIN PV */
 
 /* USER CODE END PV */
@@ -90,7 +85,6 @@ static void MX_ETH_Init(void);
 static void MX_USART3_UART_Init(void);
 static void MX_USB_OTG_FS_PCD_Init(void);
 void StartTask1(void *argument);
-void Callback01(void *argument);
 
 /* USER CODE BEGIN PFP */
 #define PUTCHAR_PROTOTYPE int __io_putchar(int ch)
@@ -147,10 +141,6 @@ int main(void)
   /* USER CODE BEGIN RTOS_SEMAPHORES */
   /* add semaphores, ... */
   /* USER CODE END RTOS_SEMAPHORES */
-
-  /* Create the timer(s) */
-  /* creation of myTimer01 */
-  myTimer01Handle = osTimerNew(Callback01, osTimerPeriodic, NULL, &myTimer01_attributes);
 
   /* USER CODE BEGIN RTOS_TIMERS */
   /* start timers, add new ones, ... */
@@ -454,23 +444,22 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 void StartTask1(void *argument)
 {
   /* USER CODE BEGIN 5 */
-  osTimerStart(myTimer01Handle,1000);
+  // Noted FreeRTOS does not have memorypool:
+  // below code is implemented for allocating impossible size
+  size_t size_to_allocate = configTOTAL_HEAP_SIZE;
   /* Infinite loop */
   for(;;)
   {
-    osDelay(2000);
-    printf("T1\r\n");
+    void* ptr = pvPortMalloc(size_to_allocate);
+    if (ptr == NULL) 
+    {
+      // Malloc failed: handle the error gracefully
+      printf("ERROR: Failed to allocate %lu bytes in task. Free heap size: %lu\r\n", 
+             (uint32_t)size_to_allocate, (uint32_t)xPortGetFreeHeapSize());
+    }
+    osDelay(5000);
   }
-}
-
-/* Callback01 function */
-void Callback01(void *argument)
-{
-  /* USER CODE BEGIN Callback01 */
-  // Caution: Should not put any delay inside timer callback function.
-  // Noted: if timer priority is too low, timer callback may not be executed.
-  printf("c\r\n");
-  /* USER CODE END Callback01 */
+  /* USER CODE END 5 */
 }
 
 /**
