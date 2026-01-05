@@ -432,6 +432,8 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
   osThreadFlagsSet(Task1Handle, 0x01);
   printf("B\r\n");
 }
+
+
 /* USER CODE END 4 */
 
 /* USER CODE BEGIN Header_StartTask1 */
@@ -444,20 +446,16 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 void StartTask1(void *argument)
 {
   /* USER CODE BEGIN 5 */
-  // Noted FreeRTOS does not have memorypool:
-  // below code is implemented for allocating impossible size
-  size_t size_to_allocate = configTOTAL_HEAP_SIZE;
+  uint16_t count = 1;
   /* Infinite loop */
   for(;;)
   {
-    void* ptr = pvPortMalloc(size_to_allocate);
-    if (ptr == NULL) 
-    {
-      // Malloc failed: handle the error gracefully
-      printf("ERROR: Failed to allocate %lu bytes in task. Free heap size: %lu\r\n", 
-             (uint32_t)size_to_allocate, (uint32_t)xPortGetFreeHeapSize());
-    }
-    osDelay(5000);
+    uint8_t large_array[count];
+    large_array[0] = 0;
+    uint32_t stackSize = osThreadGetStackSpace(osThreadGetId());
+    if(stackSize) count += 10;
+    printf("ArraySize:%lu StackFree: %lu bytes\r\n", (uint32_t)sizeof(large_array), stackSize);
+    osDelay(500);
   }
   /* USER CODE END 5 */
 }
