@@ -81,15 +81,17 @@ const osThreadAttr_t Task2_attributes = {
   .stack_size = 256 * 4,
   .priority = (osPriority_t) osPriorityNormal,
 };
-/* Definitions for myCountingSem01 */
-osSemaphoreId_t myCountingSem01Handle;
-const osSemaphoreAttr_t myCountingSem01_attributes = {
-  .name = "myCountingSem01"
+/* Definitions for Task3 */
+osThreadId_t Task3Handle;
+const osThreadAttr_t Task3_attributes = {
+  .name = "Task3",
+  .stack_size = 256 * 4,
+  .priority = (osPriority_t) osPriorityNormal,
 };
-/* Definitions for EventGroup1 */
-osEventFlagsId_t EventGroup1Handle;
-const osEventFlagsAttr_t EventGroup1_attributes = {
-  .name = "EventGroup1"
+/* Definitions for myMutex01 */
+osMutexId_t myMutex01Handle;
+const osMutexAttr_t myMutex01_attributes = {
+  .name = "myMutex01"
 };
 /* USER CODE BEGIN PV */
 
@@ -103,6 +105,7 @@ static void MX_USART3_UART_Init(void);
 static void MX_USB_OTG_FS_PCD_Init(void);
 void StartTask1(void *argument);
 void StartTask2(void *argument);
+void StartTask3(void *argument);
 
 /* USER CODE BEGIN PFP */
 #define PUTCHAR_PROTOTYPE int __io_putchar(int ch)
@@ -151,14 +154,13 @@ int main(void)
 
   /* Init scheduler */
   osKernelInitialize();
+  /* Create the mutex(es) */
+  /* creation of myMutex01 */
+  myMutex01Handle = osMutexNew(&myMutex01_attributes);
 
   /* USER CODE BEGIN RTOS_MUTEX */
   /* add mutexes, ... */
   /* USER CODE END RTOS_MUTEX */
-
-  /* Create the semaphores(s) */
-  /* creation of myCountingSem01 */
-  myCountingSem01Handle = osSemaphoreNew(2, 0, &myCountingSem01_attributes);
 
   /* USER CODE BEGIN RTOS_SEMAPHORES */
   /* add semaphores, ... */
@@ -179,13 +181,12 @@ int main(void)
   /* creation of Task2 */
   Task2Handle = osThreadNew(StartTask2, NULL, &Task2_attributes);
 
+  /* creation of Task3 */
+  Task3Handle = osThreadNew(StartTask3, NULL, &Task3_attributes);
+
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
   /* USER CODE END RTOS_THREADS */
-
-  /* Create the event(s) */
-  /* creation of EventGroup1 */
-  EventGroup1Handle = osEventFlagsNew(&EventGroup1_attributes);
 
   /* USER CODE BEGIN RTOS_EVENTS */
   /* add events, ... */
@@ -473,12 +474,26 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 void StartTask1(void *argument)
 {
   /* USER CODE BEGIN 5 */
+  uint8_t idx = 0;
   /* Infinite loop */
   for(;;)
   {
-  // Noted: bit is cleared when finish waiting.
-    osThreadFlagsWait(0x51, osFlagsWaitAll, osWaitForever);
+    osMutexAcquire(myMutex01Handle, osWaitForever);
     printf("T1\r\n");
+    if (idx == 3)
+    {
+      // Noted:
+      // 1.When we set low priority here,
+      // 2.the scheduler will switch to higher task but it has priority inheritance prevent this.
+      // 3.Priority inheritance mechanism will temporary promote this task to higher priority (to task2/3 priority).
+      // 4.So, it will run normally then priority change back to Low in next time tick
+      // The binary semaphore do not have this mechanism, the task 2 will be block because the scheduler will switch to higher task.
+      osThreadSetPriority(Task1Handle, osPriorityLow);
+      // osThreadYield();
+    }
+    idx++;
+    osMutexRelease(myMutex01Handle);
+    HAL_Delay(1500);
   }
   /* USER CODE END 5 */
 }
@@ -496,11 +511,32 @@ void StartTask2(void *argument)
   /* Infinite loop */
   for(;;)
   {
-    osThreadFlagsSet(Task1Handle, 0x50);
+    // osDelay(2000);
+    osMutexAcquire(myMutex01Handle,1000);
     printf("T2\r\n");
-    osDelay(3000);
+    osMutexRelease(myMutex01Handle);
+    HAL_Delay(1500);
   }
   /* USER CODE END StartTask2 */
+}
+
+/* USER CODE BEGIN Header_StartTask3 */
+/**
+* @brief Function implementing the Task3 thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_StartTask3 */
+void StartTask3(void *argument)
+{
+  /* USER CODE BEGIN StartTask3 */
+  /* Infinite loop */
+  for(;;)
+  {
+    printf("T3\r\n");
+    HAL_Delay(1500);
+  }
+  /* USER CODE END StartTask3 */
 }
 
 /**
