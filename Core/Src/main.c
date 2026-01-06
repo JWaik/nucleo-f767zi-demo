@@ -62,14 +62,14 @@ ETH_TxPacketConfig TxConfig;
 
 ETH_HandleTypeDef heth;
 
-IWDG_HandleTypeDef hiwdg;
-
 UART_HandleTypeDef huart3;
 
 PCD_HandleTypeDef hpcd_USB_OTG_FS;
 
-/* USER CODE BEGIN PV */
+WWDG_HandleTypeDef hwwdg;
 
+/* USER CODE BEGIN PV */
+uint32_t wwdg_cb = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -78,14 +78,20 @@ static void MX_GPIO_Init(void);
 static void MX_ETH_Init(void);
 static void MX_USART3_UART_Init(void);
 static void MX_USB_OTG_FS_PCD_Init(void);
-static void MX_IWDG_Init(void);
+static void MX_WWDG_Init(void);
 /* USER CODE BEGIN PFP */
 #define PUTCHAR_PROTOTYPE int __io_putchar(int ch)
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-
+void HAL_WWDG_EarlyWakeupCallback(WWDG_HandleTypeDef *hwwdg) {
+  // This will be run before resetting.
+  // for logging error or perfroming safe-shutdown
+  // Noted: If WWDG is refresh too early the IT will not be called
+  // According to image in page 5 in https://www.st.com/resource/en/product_training/STM32WB-WDG_TIMERS-System-Window-Watchdog-WWDG.pdf.
+  HAL_GPIO_TogglePin(LD3_GPIO_Port, LD3_Pin);
+}
 // Noted: Reset-cause is obtained from "STM32World"
 /// @brief  Possible STM32 system reset causes
 typedef enum reset_cause_e
@@ -239,7 +245,7 @@ int main(void)
   MX_ETH_Init();
   MX_USART3_UART_Init();
   MX_USB_OTG_FS_PCD_Init();
-  MX_IWDG_Init();
+  MX_WWDG_Init();
   /* USER CODE BEGIN 2 */
   printf("\n\n--------\r\nStarting\r\n");
   printf("The system reset cause is \"%s\"\r\n", reset_cause_get_name(reset_cause_get()));
@@ -249,17 +255,15 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-    // Noted:Prescaler, Window, Reload were calculated with formula in this tutorial 
-    // >> https://wiki.st.com/stm32mcu/wiki/Getting_started_with_WDG#Objectives_2
-    // (1/32000)*32*3000 so max ~3000ms
-    // from testing the value can be up to 2750, if >2750, wd reset
-    // New timer may be used like TIM11 to avoid that. (Really not sure)
-  	HAL_Delay(2750);
+    // Noted:Prescaler, Window, Reload were calculated with formula
+    // https://controllerstech.com/iwdg-and-wwdg-in-stm32/
+    // Maxtime ~40ms, Mintime~20ms
+    HAL_Delay(20); 
     printf("Refresh!\r\n");
-	  if (HAL_IWDG_Refresh(&hiwdg) != HAL_OK)
-	  {
-	  	// Error_Handler();
-	  }
+    if (HAL_WWDG_Refresh(&hwwdg) != HAL_OK)
+    {
+        Error_Handler();
+    }
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -288,9 +292,8 @@ void SystemClock_Config(void)
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
   */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_LSI|RCC_OSCILLATORTYPE_HSE;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
   RCC_OscInitStruct.HSEState = RCC_HSE_BYPASS;
-  RCC_OscInitStruct.LSIState = RCC_LSI_ON;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
   RCC_OscInitStruct.PLL.PLLM = 4;
@@ -375,35 +378,6 @@ static void MX_ETH_Init(void)
 }
 
 /**
-  * @brief IWDG Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_IWDG_Init(void)
-{
-
-  /* USER CODE BEGIN IWDG_Init 0 */
-
-  /* USER CODE END IWDG_Init 0 */
-
-  /* USER CODE BEGIN IWDG_Init 1 */
-
-  /* USER CODE END IWDG_Init 1 */
-  hiwdg.Instance = IWDG;
-  hiwdg.Init.Prescaler = IWDG_PRESCALER_32;
-  hiwdg.Init.Window = 3000;
-  hiwdg.Init.Reload = 3000;
-  if (HAL_IWDG_Init(&hiwdg) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN IWDG_Init 2 */
-
-  /* USER CODE END IWDG_Init 2 */
-
-}
-
-/**
   * @brief USART3 Initialization Function
   * @param None
   * @retval None
@@ -470,6 +444,36 @@ static void MX_USB_OTG_FS_PCD_Init(void)
   /* USER CODE BEGIN USB_OTG_FS_Init 2 */
 
   /* USER CODE END USB_OTG_FS_Init 2 */
+
+}
+
+/**
+  * @brief WWDG Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_WWDG_Init(void)
+{
+
+  /* USER CODE BEGIN WWDG_Init 0 */
+
+  /* USER CODE END WWDG_Init 0 */
+
+  /* USER CODE BEGIN WWDG_Init 1 */
+
+  /* USER CODE END WWDG_Init 1 */
+  hwwdg.Instance = WWDG;
+  hwwdg.Init.Prescaler = WWDG_PRESCALER_8;
+  hwwdg.Init.Window = 92;
+  hwwdg.Init.Counter = 119;
+  hwwdg.Init.EWIMode = WWDG_EWI_ENABLE;
+  if (HAL_WWDG_Init(&hwwdg) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN WWDG_Init 2 */
+
+  /* USER CODE END WWDG_Init 2 */
 
 }
 
