@@ -30,13 +30,13 @@
     - `HAL_UART_ErrorCallback` - Error handling
 
 
-<!-- ## Ex2. UART DMA Normal mode
+## Ex2. UART DMA Normal mode
 ### use case (https://controllerstech.com/stm32-uart-4-receive-data-using-dma/)
 -   The incoming data has a known size
 -   You’re expecting the full buffer to fill once
 -   You can afford to pause data reception while processing
 
-## Ex3. UART DMA Circular mode -->
+<!-- ## Ex3. UART DMA Circular mode -->
 
 
 ## Ref

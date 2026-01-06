@@ -110,24 +110,11 @@ void process_character(char ch)
   }
 }
 
-void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
-  // Size -> how many data bytes has been received when the interrupt is triggered
-  static uint16_t last_offset = 0;
-
-  // Ignore if called twice (which will happen on every half buffer)
-  if (Size != last_offset)
-  {
-    // If wrap around reset last_size, circular buffer
-    if (Size < last_offset)
-      last_offset = 0;
-
-    while (last_offset < Size)
-    {
-      process_character((char)dma_buffer[last_offset]);
-      ++last_offset;
-    }
-  }
+  char* char_ptr_dma = (char*)dma_buffer;
+  printf("%s\r\n", char_ptr_dma);
+	HAL_UART_Receive_DMA(&huart5, dma_buffer, 4);   // need to call again for continuous listening
 }
 
 void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart)
@@ -174,12 +161,12 @@ int main(void)
   MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
 
-  HAL_UARTEx_ReceiveToIdle_DMA(&huart5, dma_buffer, BUFFER_SIZE_BYTE);
+  HAL_UART_Receive_DMA(&huart5, dma_buffer, 4);
   /* USER CODE END 2 */
 
   /* Infinite loop */
-  uint32_t tx_cnt = 1;
   /* USER CODE BEGIN WHILE */
+  uint32_t tx_cnt = 1;
   while (1)
   {
     HAL_Delay(1000);
