@@ -36,8 +36,8 @@
 -   You’re expecting the full buffer to fill once
 -   You can afford to pause data reception while processing
 
-<!-- ## Ex3. UART DMA Circular mode -->
-
+## Ex3. UART DMA Circular mode
+-   Continuous streaming, large data transfers, high-speed communication
 
 ## Ref
 -   STM32World

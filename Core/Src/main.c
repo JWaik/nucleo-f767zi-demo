@@ -33,6 +33,8 @@
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 #define BUFFER_SIZE_BYTE 64
+#define HALF_BUFFER_SIZE_BYTE BUFFER_SIZE_BYTE/2
+#define EXAMPLE_DATA_SIZE_ALL_BYTES 70
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -70,8 +72,8 @@ DMA_HandleTypeDef hdma_uart5_rx;
 PCD_HandleTypeDef hpcd_USB_OTG_FS;
 
 /* USER CODE BEGIN PV */
-char transmit_buffer[BUFFER_SIZE_BYTE];
-char receive_buffer[BUFFER_SIZE_BYTE];
+char transmit_buffer[128];
+char receive_buffer[EXAMPLE_DATA_SIZE_ALL_BYTES];
 uint8_t dma_buffer[BUFFER_SIZE_BYTE];
 /* USER CODE END PV */
 
@@ -110,11 +112,38 @@ void process_character(char ch)
   }
 }
 
+int HTC = 0, FTC = 0;
+uint32_t indx=0;
+
+int isSizeRxed = 0;
+
+void HAL_UART_RxHalfCpltCallback(UART_HandleTypeDef *huart)
+{
+  // Called when half of the buffer size received
+  // TODO: data processing is required. In this function is just an example.
+  if (indx > EXAMPLE_DATA_SIZE_ALL_BYTES) indx = 0;
+  memcpy(receive_buffer + indx, dma_buffer, HALF_BUFFER_SIZE_BYTE);
+  memset(dma_buffer, '\0', HALF_BUFFER_SIZE_BYTE);
+  indx += HALF_BUFFER_SIZE_BYTE;
+  HTC = 1; // half transfer complete callback was called
+  FTC = 0;
+
+  printf("1st-half: %s\r\n", receive_buffer);
+}
+
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
-  char* char_ptr_dma = (char*)dma_buffer;
-  printf("%s\r\n", char_ptr_dma);
-	HAL_UART_Receive_DMA(&huart5, dma_buffer, 4);   // need to call again for continuous listening
+  // Called when the 2nd half is received
+  // TODO: data processing is required. In this function is just an example.
+  // todo: check indx is it exceed range when new data coming? should be reset!
+  if (indx > EXAMPLE_DATA_SIZE_ALL_BYTES) indx = 0;
+  memcpy(receive_buffer + indx, dma_buffer + HALF_BUFFER_SIZE_BYTE, HALF_BUFFER_SIZE_BYTE);
+  memset(dma_buffer + HALF_BUFFER_SIZE_BYTE, '\0', HALF_BUFFER_SIZE_BYTE);
+  indx += HALF_BUFFER_SIZE_BYTE;
+  HTC = 0;
+  FTC = 1;
+
+  printf("completed data: %s\r\n", receive_buffer);
 }
 
 void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart)
@@ -161,21 +190,67 @@ int main(void)
   MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
 
-  HAL_UART_Receive_DMA(&huart5, dma_buffer, 4);
+  HAL_UART_Receive_DMA(&huart5, dma_buffer, BUFFER_SIZE_BYTE);
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  uint32_t tx_cnt = 1;
   while (1)
   {
     HAL_Delay(1000);
-    sprintf(transmit_buffer, "Transmit %lu", tx_cnt++); // sprintf add null terminate
-    HAL_UART_Transmit(&huart2, (uint8_t*)transmit_buffer, strlen(transmit_buffer)+1, HAL_UART_TIMEOUT_VALUE); // +1 null terminate
+    sprintf(transmit_buffer, "123456789101112131415161718192021222324252627282930313233343536373839");
+
+    // // send once the data is not completed(or half complete)
+    // if (HTC == 0 && FTC == 0)
+    // {
+      HAL_UART_Transmit(&huart2, (uint8_t *)transmit_buffer, strlen(transmit_buffer) + 1, HAL_UART_TIMEOUT_VALUE); // +1 null terminate
+    // }
+
+    // These lines for the scenario
+    // 0. Tx stop sending temporary
+    // 1. Received BUFFER_SIZE_BYTE+8
+    // 2. 1st half and 2nd half triggered, indx = BUFFER_SIZE_BYTE
+    // 3. Remaining byte 8 will be lost.
+    // So, we will check manually and put it to receive buffer
+    // remaining_bytes < HALF_BUFFER_SIZE_BYTE mean we are going to call 1st/2nd half interrupt eventually.
+    // Right now we are not call any interrupt yet.
+    uint32_t remaining_bytes = (EXAMPLE_DATA_SIZE_ALL_BYTES - indx);
+    if ((remaining_bytes > 0) && (remaining_bytes < HALF_BUFFER_SIZE_BYTE))
+    {
+      printf("remaining: %lu\r\n", remaining_bytes);
+
+      if (HTC == 1) // 1st half is triggered recently
+      {
+        strcpy((char *)receive_buffer + indx, (char *)dma_buffer + HALF_BUFFER_SIZE_BYTE); // memcpy (FinalBuf+indx, RxData+128, (size-indx));
+        indx = EXAMPLE_DATA_SIZE_ALL_BYTES;
+        HTC = 0;
+        // Now we need to start storing the received data from the beginning of the RxData buffer. 
+        // But the DMA in circular mode will just store the data at the very next position. 
+        // So we need to manually stop the DMA and call the function again to receive BUFFER_SIZE_BYTE bytes of data.
+        HAL_UART_DMAStop(&huart5);
+        HAL_UART_Receive_DMA(&huart5, dma_buffer, BUFFER_SIZE_BYTE);
+      }
+      else if (FTC == 1) // 2nd half is triggered recently
+      {
+        strcpy((char *)receive_buffer + indx, (char *)dma_buffer);
+        // memcpy(receive_buffer+indx, dma_buffer, remaining_bytes);
+        indx = EXAMPLE_DATA_SIZE_ALL_BYTES;
+        FTC = 0;
+        HAL_UART_DMAStop(&huart5);
+        HAL_UART_Receive_DMA(&huart5, dma_buffer, BUFFER_SIZE_BYTE);
+      }
+      else if ((indx == EXAMPLE_DATA_SIZE_ALL_BYTES) && ((HTC == 1) || (FTC == 1))) // no extra byte at all.
+      {
+        HTC = 0;
+        FTC = 0;
+        HAL_UART_DMAStop(&huart5);
+        HAL_UART_Receive_DMA(&huart5, dma_buffer, BUFFER_SIZE_BYTE);
+      }
+    }
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-  }
+    }
   /* USER CODE END 3 */
 }
 
